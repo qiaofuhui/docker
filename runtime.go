@@ -23,6 +23,7 @@ type Runtime struct {
 	repositories   *TagStore
 	authConfig     *auth.AuthConfig
 	idIndex        *TruncIndex
+	volumes        *Graph
 }
 
 var sysInitPath string
@@ -277,6 +278,10 @@ func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
+	volumes, err := NewGraph(path.Join(root, "volumes"))
+	if err != nil {
+		return nil, err
+	}
 	repositories, err := NewTagStore(path.Join(root, "repositories"), g)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
@@ -302,6 +307,7 @@ func NewRuntimeFromDirectory(root string) (*Runtime, error) {
 		repositories:   repositories,
 		authConfig:     authConfig,
 		idIndex:        NewTruncIndex(),
+		volumes:        volumes,
 	}
 
 	if err := runtime.restore(); err != nil {
