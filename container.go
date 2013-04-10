@@ -62,7 +62,7 @@ type Config struct {
 	Env          []string
 	Cmd          []string
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
-	Volumes      map[string]struct{}
+	Volumes      map[string]string
 }
 
 func ParseRun(args []string, stdout io.Writer) (*Config, error) {
@@ -420,6 +420,7 @@ func (container *Container) Start() error {
 
 	// Init the lock
 	container.waitLock = make(chan struct{})
+
 	container.ToDisk()
 	go container.monitor()
 	return nil
