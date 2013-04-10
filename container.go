@@ -64,6 +64,7 @@ type Config struct {
 	Cmd          []string
 	Image        string // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes      map[string]struct{}
+	VolumesFrom  string
 }
 
 func ParseRun(args []string, stdout io.Writer) (*Config, error) {
@@ -89,6 +90,8 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 
 	flVolumes := NewPathOpts()
 	cmd.Var(flVolumes, "v", "Attach a data volume")
+
+	flVolumesFrom := cmd.String("volumes-from", "", "Mount volumes from the specified container")
 
 	if err := cmd.Parse(args); err != nil {
 		return nil, err
@@ -129,6 +132,7 @@ func ParseRun(args []string, stdout io.Writer) (*Config, error) {
 		Cmd:          runCmd,
 		Image:        image,
 		Volumes:      flVolumes,
+		VolumesFrom:  *flVolumesFrom,
 	}
 	// When allocating stdin in attached mode, close stdin at client disconnect
 	if config.OpenStdin && config.AttachStdin {
@@ -372,6 +376,22 @@ func (container *Container) Start() error {
 				return nil
 			}
 			container.Volumes[volPath] = c.Id
+		}
+	}
+
+	if container.Config.VolumesFrom != "" {
+		c := container.runtime.Get(container.Config.VolumesFrom)
+		if c == nil {
+			return fmt.Errorf("Container %s not found. Impossible to mount its volumes")
+		}
+		for volPath, id := range c.Volumes {
+			if _, exists := container.Volumes[volPath]; exists {
+				return fmt.Errorf("The requested volume %s overlap one of the volume of the container %s", volPath, c.Id)
+			}
+			if err := os.MkdirAll(path.Join(container.RootfsPath(), volPath), 0755); err != nil {
+				return nil
+			}
+			container.Volumes[volPath] = id
 		}
 	}
 
